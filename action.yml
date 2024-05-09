@@ -88,6 +88,10 @@ inputs:
     description: "Where to install the nFPM binary (default: $HOME/bin/nfpm)"
     type: string
     default: "$HOME/bin/nfpm"
+  nfpm_template_destination:
+    description: "Where to install the nfpm_template binary (default: $HOME/bin/nfpm_template)"
+    type: string
+    default: "$HOME/bin/nfpm_template"
   nfpm_version:
     description: "The version of nFPM to install (default: latest)"
     type: string
@@ -161,9 +165,18 @@ runs:
       with:
         cache: false
         go-version-file: go.mod
-    - name: Package binary
+    - name: Build nfpm_template binary
       shell: bash
       working-directory: nfpm_packaging
+      run: |
+        mkdir -p "$(dirname "${{ inputs.nfpm_template_destination }}")"
+        DESTINATION="$(readlink -f ${{ inputs.nfpm_template_destination }})"
+        DESTINATION_DIR="$(dirname "$DESTINATION")"
+        echo "$DESTINATION_DIR" >> "$GITHUB_PATH"
+        go build -o nfpm_template .
+        mv nfpm_template "$DESTINATION"
+    - name: Package binary
+      shell: bash
       env:
         # These environment variables are used by the template program that generates the nfpm config
         INPUT_NAME: ${{ inputs.name }}
@@ -189,9 +202,8 @@ runs:
         else
           printf "packaging binary %s" "$fileo"
         fi
-        go build -o nfpm_template .
-        INPUT_DEPENDS="${{ inputs.rpm_depends }}" ./nfpm_template > ./nfpm_rpm_config.yml
-        INPUT_DEPENDS="${{ inputs.deb_depends }}" ./nfpm_template > ./nfpm_deb_config.yml
+        INPUT_DEPENDS="${{ inputs.rpm_depends }}" nfpm_template > ./nfpm_rpm_config.yml
+        INPUT_DEPENDS="${{ inputs.deb_depends }}" nfpm_template > ./nfpm_deb_config.yml
         cat ./nfpm_*_config.yml
         mkdir -p ./out
         nfpm package -f ./nfpm_rpm_config.yml -p rpm -t ./out/
