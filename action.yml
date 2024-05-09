@@ -101,8 +101,15 @@ runs:
   using: composite
   steps:
     - uses: actions/checkout@v4
+      env:
+        # We have to use the env context to resolve the github context so that we can check
+        # out ourselves.
+        # See: https://github.com/orgs/community/discussions/49245
+        ACTION_PACKAGING_REF: ${{ github.action_ref }}
       with:
         path: nfpm_packaging
+        repository: hashicorp/actions-packaging-linux
+        ref: ${{ env.ACTION_PACKAGING_REF }}
     - name: Install nFPM
       working-directory: nfpm_packaging
       shell: bash
